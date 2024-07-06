@@ -1,4 +1,4 @@
-![moon-miner](./moon-miner-logo.png)
+![moon-miner](./moon-miner-logo.webp)
 
 # Community Summer Hackathon
 
