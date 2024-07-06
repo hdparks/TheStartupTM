@@ -136,8 +136,11 @@ a:hover::after {
 
 .surface-layer {
   background: url('../images/IsoMoon.webp') no-repeat center center;
-  background-size: 200% 200%;
   animation: pan 60s linear infinite;
+}
+
+.text-center {
+  text-align: center;
 }
 
 @keyframes pan {
