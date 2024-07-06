@@ -2,7 +2,7 @@
   "layers": [
     {
       "className": "surface-layer",
-      "content": "<h1 class='text-center'>CodeWorks 2024 Game Jam</h1><h3>🌟 Theme: Rampant Resources 🌟</h3><p>Participants are required to submit a game based on collecting and using resources. The most important aspect of the hackathon is to find an enjoyable way to keep the user engaged.</p><p>All participants must create a fork of <a href='https://github.com/example/hackathon-starter-repo'>this existing repo</a> to start their projects.</p>"
+      "content": "<h1 class='text-center'>CodeWorks 2024 Game Jam</h1><h3>🌟 Theme: Rampant Resources 🌟</h3><p>Participants are required to submit a game based on collecting and using resources. The most important aspect of the hackathon is to find an enjoyable way to keep the user engaged.</p><p>All participants must create a fork of <a href='https://github.com/codeworksacademy/hackathon_summer_2024'>this existing repo</a> to start their projects.</p>"
     },
     {
       "className": "sub-surface-layer",
