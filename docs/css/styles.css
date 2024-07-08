@@ -82,7 +82,10 @@ a:hover::after {
 }
 
 #logo {
-  width: 50vw;
+  max-width: 90vw;
+  max-height: 90vh;
+  aspect-ratio: 1/1;
+  object-fit: contain;
   animation: spin 30s linear infinite;
   cursor: pointer;
 }
