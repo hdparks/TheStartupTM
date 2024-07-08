@@ -109,6 +109,7 @@ a:hover::after {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.5);
   animation: clickEffect 0.5s ease-out;
+  pointer-events: none;
 }
 
 @keyframes clickEffect {
