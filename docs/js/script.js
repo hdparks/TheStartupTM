@@ -29,8 +29,10 @@ function handleLogoClick(event) {
     loadContent();
   }
 }
-
+let loaded = false
 function loadContent() {
+  if (loaded) { return }
+  contentDiv.innerHTML = ''
   fetch('data/content.json')
     .then(response => response.json())
     .then(data => {
@@ -40,6 +42,7 @@ function loadContent() {
         layerDiv.innerHTML = `<div class="content-box">${layer.content}</div>`;
         contentDiv.appendChild(layerDiv);
       });
+      loaded = true
     })
     .catch(error => console.error('Error loading content:', error));
 }
