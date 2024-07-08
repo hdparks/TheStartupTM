@@ -124,14 +124,18 @@ a:hover::after {
 }
 
 .layer {
-  height: 100vh;
+  min-height: 100vh;
   background-size: cover;
   background-position: center;
-  padding: 20px;
+  padding: 30px 20px;
   box-sizing: border-box;
   z-index: 1;
   display: grid;
   place-items: center;
+}
+
+.layer img {
+  max-width: 100%;
 }
 
 .surface-layer {
@@ -165,6 +169,9 @@ a:hover::after {
   }
 }
 
+#content {
+  padding-bottom: 100px;
+}
 
 .content-box {
   background: rgba(0, 0, 0, 0.8);
