@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,6 +25,10 @@ type model struct {
     progressTowardUser int
     progressTowardLostUser int
     copyPasteModifier int
+
+    hireMode bool
+    hireNum int
+
 }
 
 var baseStyle = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
@@ -52,13 +57,16 @@ func initialModel() model {
         progressTowardUser:0,
         progressTowardLostUser: 0,
         copyPasteModifier: 0,
+
+        hireMode: false,
+        hireNum: 1,
     }
 }
 
 type TickMsg time.Time
 
 func (m model) Init() tea.Cmd {
-    return doTick()
+    return tea.Batch(doTick(), textinput.Blink)
 }
 
 func doTick() tea.Cmd {
@@ -96,35 +104,67 @@ func onTick(m model) model {
     return m
 }
 
+func(m model) UpdateMain(msg tea.KeyMsg) model {
+    switch msg.String() {
+    
+    case "{", "}","[","]","j","k":
+        m = m.ApplyProgressTowardFeature(1)
+
+    case "ctrl+c", "ctrl-v":
+        m.copyPasteModifier = min(m.copyPasteModifier+1,10)
+
+    case "1","2":
+        m.bugs = max(0, m.bugs - 1)
+
+    case "h":
+        m.hireMode = !m.hireMode
+    }
+    return m
+}
+
+func (m model) UpdateHire(msg tea.KeyMsg) model {
+    switch msg.String() {
+
+    case "h":
+        m.hireMode = !m.hireMode
+
+    case "+":
+        m.hireNum += 1
+
+    case "-":
+        m.hireNum -= 1
+
+    case "d":
+        m.devs += m.hireNum
+
+    }
+    return m    
+}
+
 func(m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
     case tea.KeyMsg: 
-        switch msg.String() {
-        
-        case tea.KeyEsc.String():
+        if msg.String() == tea.KeyEsc.String() {
             fmt.Println("quitting")
             return m, tea.Quit;
-
-        case "{", "}","[","]","j","k":
-            m = m.ApplyProgressTowardFeature(1)
-    
-        case "ctrl+c", "ctrl-v":
-            m.copyPasteModifier = min(m.copyPasteModifier+1,10)
-
-        case "1","2":
-            m.bugs = max(0, m.bugs - 1)
         }
 
+        if (m.hireMode) {
+            m = m.UpdateMain(msg)
+        } else {
+            m = m.UpdateHire(msg)
+        }
 
     case TickMsg:
         m = onTick(m)
         return m, doTick()
+
     }
 
-    return m, nil
+    return m, nil 
 }
 
-func (m model) View() string {
+func (m model) TableView() string {
     s := "The Startup:tm:\n\n"
    
     cols := []table.Column{
@@ -150,6 +190,28 @@ func (m model) View() string {
     s += baseStyle.Render(t.View()) + "\n"
 
     return s
+}
+
+func (m model) HiringView() string {
+    s := "The Startup:tm:\n\n"
+    
+    hiring := fmt.Sprintf("Hire %v devs\n",m.hireNum) 
+    hiring += "\n"
+    hiring += "(h to close)\n"
+
+    return s + baseStyle.Render(hiring)
+    
+}
+
+func (m model) View() string {
+    
+    base := m.TableView()
+
+    if (m.hireMode) {
+        hiringOverlay := m.HiringView()
+        base = PlaceOverlay(10,5, hiringOverlay, base, true)
+    }
+    return base 
 }
 
 func main() {
