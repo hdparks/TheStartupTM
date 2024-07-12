@@ -5,8 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -26,9 +28,8 @@ type model struct {
     progressTowardLostUser int
     copyPasteModifier int
 
-    hireMode bool
-    hireNum int
-
+    devWindow bool
+    devHelp help.Model
 }
 
 var baseStyle = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
@@ -58,8 +59,8 @@ func initialModel() model {
         progressTowardLostUser: 0,
         copyPasteModifier: 0,
 
-        hireMode: false,
-        hireNum: 1,
+        devWindow: false,
+        devHelp: help.New(),
     }
 }
 
@@ -116,26 +117,73 @@ func(m model) UpdateMain(msg tea.KeyMsg) model {
     case "1","2":
         m.bugs = max(0, m.bugs - 1)
 
-    case "h":
-        m.hireMode = !m.hireMode
+    case "d":
+        m.devWindow = !m.devWindow
     }
     return m
 }
 
-func (m model) UpdateHire(msg tea.KeyMsg) model {
-    switch msg.String() {
+type devKeyMap struct {
+    Close key.Binding
+    Hire key.Binding
+    Fire key.Binding
+    FocusBugs key.Binding
+    FocusNewFeatures key.Binding
+    Help key.Binding
+}
 
-    case "h":
-        m.hireMode = !m.hireMode
+func (k devKeyMap) ShortHelp() []key.Binding {
+    return []key.Binding{k.Help, k.Close}
+}
+func (k devKeyMap) FullHelp() [][]key.Binding {
+    return [][]key.Binding{
+        {k.Hire, k.Fire, k.FocusBugs, k.FocusNewFeatures},
+        {k.Help, k.Close},
+    }
+}
 
-    case "+":
-        m.hireNum += 1
+var devKeys = devKeyMap{
+    Close: key.NewBinding(
+        key.WithKeys("d"),
+        key.WithHelp("d","close menu"),
+    ),
+    Hire: key.NewBinding(
+        key.WithKeys("h"),
+        key.WithHelp("h","hire dev"),
+    ),
+    Fire: key.NewBinding(
+        key.WithKeys("f"),
+        key.WithHelp("f","fire dev"),
+    ),
+    FocusBugs: key.NewBinding(
+        key.WithKeys("b"),
+        key.WithHelp("b","focus bugs"),
+    ),
+    FocusNewFeatures: key.NewBinding(
+        key.WithKeys("n"),
+        key.WithHelp("n","focus new features"),
+    ),
+    Help: key.NewBinding(
+        key.WithKeys("?"),
+        key.WithHelp("?", "help"),
+    ),
+}
 
-    case "-":
-        m.hireNum -= 1
 
-    case "d":
-        m.devs += m.hireNum
+func (m model) UpdateDev(msg tea.KeyMsg) model {
+    switch {
+
+    case key.Matches(msg,devKeys.Close):
+        m.devWindow= !m.devWindow
+
+    case key.Matches(msg, devKeys.Hire):
+        m.devs += 1
+
+    case key.Matches(msg, devKeys.Fire):
+        m.devs -= 1
+  
+    case key.Matches(msg, devKeys.Help):
+        m.devHelp.ShowAll = !m.devHelp.ShowAll
 
     }
     return m    
@@ -143,16 +191,19 @@ func (m model) UpdateHire(msg tea.KeyMsg) model {
 
 func(m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
+    case tea.WindowSizeMsg:
+        m.devHelp.Width = msg.Width
+
     case tea.KeyMsg: 
         if msg.String() == tea.KeyEsc.String() {
             fmt.Println("quitting")
             return m, tea.Quit;
         }
 
-        if (m.hireMode) {
-            m = m.UpdateMain(msg)
+        if (m.devWindow) {
+            m = m.UpdateDev(msg)
         } else {
-            m = m.UpdateHire(msg)
+            m = m.UpdateMain(msg)
         }
 
     case TickMsg:
@@ -192,24 +243,23 @@ func (m model) TableView() string {
     return s
 }
 
-func (m model) HiringView() string {
-    s := "The Startup:tm:\n\n"
-    
-    hiring := fmt.Sprintf("Hire %v devs\n",m.hireNum) 
-    hiring += "\n"
-    hiring += "(h to close)\n"
 
-    return s + baseStyle.Render(hiring)
+var devBorder = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("63"));
+
+func (m model) DevWindow() string {
     
+    dev := fmt.Sprintf("Hire 1 dev\n%v\n", m.devHelp.View(devKeys)) 
+    return devBorder.Render(dev)
 }
+
 
 func (m model) View() string {
     
     base := m.TableView()
 
-    if (m.hireMode) {
-        hiringOverlay := m.HiringView()
-        base = PlaceOverlay(10,5, hiringOverlay, base, true)
+    if (m.devWindow) {
+        devOverlay := m.DevWindow()
+        base = PlaceOverlay(10,5, devOverlay, base, true)
     }
     return base 
 }
