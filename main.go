@@ -45,6 +45,9 @@ type model struct {
     height int
     width int
 
+    windowHeight int
+    windowWidth int
+
     helpWindow bool
     helpModel help.Model
 
@@ -163,7 +166,7 @@ func onGameTick(m model) model {
     
 
     m.bugsPerSecondPerDev = float64(m.devs) * BUGS_PER_SECOND_PER_DEV
-    m.bugsPerSecondPerFeature = float64(m.devs) * BUGS_PER_SECOND_PER_FEATURE
+    m.bugsPerSecondPerFeature = float64(m.features) * BUGS_PER_SECOND_PER_FEATURE
     bugsPerSecond := m.bugsPerSecondPerDev + m.bugsPerSecondPerFeature
     m.progressTowardBug += bugsPerSecond
     newBugs := math.Floor(m.progressTowardBug)
@@ -310,10 +313,11 @@ func(m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     case tea.WindowSizeMsg:
         m.width = min(200,msg.Width)
         m.height = min(20,msg.Height)
+        m.windowWidth = msg.Width
+        m.windowHeight = msg.Height
         m.helpModel.Width = msg.Width
 
     case tea.KeyMsg: 
-        m.debug = msg.String()
 
         if msg.String() == tea.KeyEsc.String(){
             return m, tea.Quit;
@@ -402,7 +406,15 @@ func (m model) CashWindow() string {
     startupBuilding += "│◫ ◫ ◫ ◫  ◫ ◫ ◫ ◫│\n"
     startupBuilding += "│◫ ◫ ◫ ◫  ◫ ◫ ◫ ◫│\n"
     startupBuilding += "└──────┮◚◚┭──────┘\n"
-    startupBuilding = startupStyle.Render(startupBuilding)
+    
+    style := startupStyle
+    sec := time.Now().Unix()
+    if (m.cash > 900000 && sec % 2 == 0){
+        style = style.Foreground(lipgloss.Color("1"))
+    } else {
+        style = style.Foreground(lipgloss.Color("7"))
+    }
+    startupBuilding = style.Render(startupBuilding)
 
     s := cashTube + "\n" + startupBuilding
 
@@ -425,19 +437,22 @@ func (m model) CashWindow() string {
 func (m model) TableView() string {
    
     cols := []table.Column{
-        {Title: "", Width: 16},
-        {Title: "", Width: 16},
+        {Title: "", Width: 12},
+        {Title: "", Width: 8},
         {Title: "", Width: 16},
         {Title: "", Width: 16},
         {Title: "", Width: 16},
     }
 
     rows := []table.Row{
-        {"Price per share", fmt.Sprintf("%v", m.pricePerShare)},
+        {"Company Value", fmt.Sprintf("%v", m.pricePerShare)},
         {"Cash", fmt.Sprintf("%v", m.cash), fmt.Sprintf("$%d/sec",m.cashPerSecond)},
+        {},
         {"Users", fmt.Sprintf("%v", m.users), fmt.Sprintf("%.2f/sec", m.usersPerSecondFromFeatures + m.usersPerSecondFromMarketers - m.usersPerSecondFromBugs)},
+        {},
         {"Features", fmt.Sprintf("%v", m.features), fmt.Sprintf("%.2f Users/sec",m.usersPerSecondFromFeatures), fmt.Sprintf("%.2f Bugs/sec",m.bugsPerSecondPerFeature)},
         {"Bugs", fmt.Sprintf("%v", m.bugs), fmt.Sprintf("%.2f Users/sec", -m.usersPerSecondFromBugs)},
+        {},
         {"Devs", fmt.Sprintf("%v",m.devs),fmt.Sprintf("%.2f Features/sec", m.featuresPerSecond), fmt.Sprintf("%.2f Bugs/sec",m.bugsPerSecondPerDev),fmt.Sprintf("%d $/sec", m.devs * DEV_SALARY_PER_SECOND)},
         {"QA", fmt.Sprintf("%v", m.qa)},
         {"Marketers", fmt.Sprintf("%v", m.marketers)},
@@ -467,14 +482,17 @@ func maxWidth(s []string) int {
     return maxW
 }
 
+var centerStyle = lipgloss.NewStyle().Align(lipgloss.Center, lipgloss.Center)
+
 func (m model) View() string {
+    viewStyle := centerStyle.Width(m.windowWidth).Height(m.windowHeight)
     switch(m.scene) {
     case Start:
-        return m.StartView()
+        return viewStyle.Render(m.StartView())
     case Game:
-        return m.GameView()
+        return viewStyle.Render(m.GameView())
     case End:
-        return m.EndView()
+        return viewStyle.Render(m.EndView())
     }
     return "State not found"
 }
@@ -487,7 +505,6 @@ func baseScreenStyle(m model) lipgloss.Style {
 
 func (m model) GameView() string {
     style := baseScreenStyle(m)
-    m.debug = fmt.Sprintf("%v",style.GetAlign())
     base := style.Render(m.TableView())
 
     cashView := m.CashWindow()
@@ -504,8 +521,7 @@ func (m model) GameView() string {
 
     shortHelp := m.helpModel.ShortHelpView(devKeys.ShortHelp())
     base += "\n" + shortHelp + "\n"
-
-    base += "\n" + m.debug + "\n"
+    base += "\n--" + m.debug + "--\n"
     return base 
 }
 
