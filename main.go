@@ -80,22 +80,21 @@ type particle struct {
 }
 
 var baseStyle = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
-var FEATURE_SECONDS_PER_USER = 30
-var USERS_PER_SECOND_PER_FEATURE = 1./30.
-var USERS_PER_SECOND_PER_MARKERTER = 1./30.
-var USERS_PER_SECOND_PER_BUG= 1./180.
+var USERS_PER_SECOND_PER_FEATURE = 1./4.
+var USERS_PER_SECOND_PER_MARKERTER = 1./4.
+var USERS_PER_SECOND_PER_BUG= 1./8.
 var CASH_PER_SECOND_PER_USER_PER_FEATURE = 1
-var BUGS_PER_SECOND_PER_FEATURE = 1./200.
-var BUGS_PER_SECOND_PER_DEV = 1./200.
+var BUGS_PER_SECOND_PER_FEATURE = 1./100.
+var BUGS_PER_SECOND_PER_DEV = 1./40.
 var BUGS_PER_SECOND_PER_QA = 1./60.
-var FEATURES_PER_SECOND_PER_DEV = 1./60.
+var FEATURES_PER_SECOND_PER_DEV = 1./2.
 var DEV_SALARY_PER_SECOND = 1
 var PRICE_PER_FEATURE = 100
 var PRICE_PER_USER = 100
 var PRICE_PER_BUG = -500
 var PRICE_PER_DEV = 1000
 var PRICE_PER_MARKETER = 1000
-var CASH_CAP = 1000000
+var CASH_CAP = 2000000
 
 
 func initialModel() model {
@@ -311,7 +310,7 @@ var devKeys = devKeyMap{
 func(m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
     case tea.WindowSizeMsg:
-        m.width = min(200,msg.Width)
+        m.width = min(122,msg.Width)
         m.height = min(20,msg.Height)
         m.windowWidth = msg.Width
         m.windowHeight = msg.Height
@@ -437,7 +436,7 @@ func (m model) CashWindow() string {
 func (m model) TableView() string {
    
     cols := []table.Column{
-        {Title: "", Width: 12},
+        {Title: "", Width: 16},
         {Title: "", Width: 8},
         {Title: "", Width: 16},
         {Title: "", Width: 16},
