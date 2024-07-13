@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -20,17 +21,25 @@ import (
 type model struct {
     pricePerShare int
     cash int
+    cashPerSecond int
     users int
+    usersPerSecondFromFeatures float64
+    usersPerSecondFromMarketers float64
+    usersPerSecondFromBugs float64
     features int
+    featuresPerSecond float64
     bugs int
+    bugsPerSecondPerFeature float64
+    bugsPerSecondPerDev float64
     devs int
+    qa int
     marketers int
     
-    progressTowardFeature int
-    progressTowardBug int
-    progressTowardBugFix int
-    progressTowardUser int
-    progressTowardLostUser int
+    progressTowardFeature float64 
+    progressTowardBug float64 
+    progressTowardBugFix float64
+    progressTowardUser float64 
+    progressTowardLostUser float64
     copyPasteModifier int
 
     height int
@@ -39,7 +48,9 @@ type model struct {
     helpWindow bool
     helpModel help.Model
 
+    
     cashParticles [20]particle
+    cashParticlesVisible int
 
     devFocus int
     devFocusProgress progress.Model
@@ -66,11 +77,15 @@ type particle struct {
 }
 
 var baseStyle = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
-var FEATURE_SECONDS_PER_USER = 60
-var BUG_SECONDS_PER_LOST_USER = 180
+var FEATURE_SECONDS_PER_USER = 30
+var USERS_PER_SECOND_PER_FEATURE = 1./30.
+var USERS_PER_SECOND_PER_MARKERTER = 1./30.
+var USERS_PER_SECOND_PER_BUG= 1./180.
 var CASH_PER_SECOND_PER_USER_PER_FEATURE = 1
-var DEV_FEATURE_SECONDS_PER_BUG = 200
-var DEV_SECONDS_PER_FEATURE = 60
+var BUGS_PER_SECOND_PER_FEATURE = 1./200.
+var BUGS_PER_SECOND_PER_DEV = 1./200.
+var BUGS_PER_SECOND_PER_QA = 1./60.
+var FEATURES_PER_SECOND_PER_DEV = 1./60.
 var DEV_SALARY_PER_SECOND = 1
 var PRICE_PER_FEATURE = 100
 var PRICE_PER_USER = 100
@@ -84,6 +99,7 @@ func initialModel() model {
         return model {
         pricePerShare: 0,
         cash: 0,
+        cashPerSecond: 0,
         users: 1,
         features: 0,
         bugs:0,
@@ -104,6 +120,7 @@ func initialModel() model {
         helpModel: help.New(),
 
         cashParticles: [20]particle{},
+        cashParticlesVisible: 0,
 
         devFocus: 10,
         devFocusProgress: progress.New(progress.WithSolidFill("4"), progress.WithWidth(10)),
@@ -132,33 +149,47 @@ func onGameTick(m model) model {
         return m
     }
 
-    m.progressTowardFeature += (m.devs * m.devFocus) / 10
-    newFeatures := m.progressTowardFeature / DEV_SECONDS_PER_FEATURE
-    m.features += newFeatures
-    m.progressTowardFeature -= newFeatures * DEV_SECONDS_PER_FEATURE 
+    m.featuresPerSecond = float64(m.devs) * FEATURES_PER_SECOND_PER_DEV
+    m.progressTowardFeature += m.featuresPerSecond
+    newFeatures := math.Floor(m.progressTowardFeature)
+    m.features += int(newFeatures)
+    m.progressTowardFeature -= newFeatures
 
-    m.progressTowardBugFix += (m.devs * (10 - m.devFocus)) / 10
-    bugFixes := m.progressTowardBugFix / DEV_SECONDS_PER_FEATURE
-    m.bugs -= bugFixes
-    m.progressTowardBugFix -= bugFixes * DEV_SECONDS_PER_FEATURE
+    bugsFixedPerSecond := float64(m.qa) * BUGS_PER_SECOND_PER_QA
+    m.progressTowardBugFix += bugsFixedPerSecond
+    bugFixes := math.Floor(m.progressTowardBugFix)
+    m.bugs -= int(bugFixes)
+    m.progressTowardBugFix -= bugFixes 
+    
 
-    m.progressTowardBug += m.devs * m.features
-    newBugs := m.progressTowardBug / DEV_FEATURE_SECONDS_PER_BUG
-    m.bugs += newBugs
-    m.progressTowardBug -= newBugs * DEV_FEATURE_SECONDS_PER_BUG
+    m.bugsPerSecondPerDev = float64(m.devs) * BUGS_PER_SECOND_PER_DEV
+    m.bugsPerSecondPerFeature = float64(m.devs) * BUGS_PER_SECOND_PER_FEATURE
+    bugsPerSecond := m.bugsPerSecondPerDev + m.bugsPerSecondPerFeature
+    m.progressTowardBug += bugsPerSecond
+    newBugs := math.Floor(m.progressTowardBug)
+    m.bugs += int(newBugs)
+    m.progressTowardBug -= newBugs
 
-    m.progressTowardUser += m.features
-    newUsers := m.progressTowardUser / FEATURE_SECONDS_PER_USER
-    m.users += newUsers
-    m.progressTowardUser -= newUsers * FEATURE_SECONDS_PER_USER
 
-    m.progressTowardLostUser += m.bugs
-    lostUsers := m.progressTowardLostUser / BUG_SECONDS_PER_LOST_USER 
-    m.users -= lostUsers
-    m.progressTowardUser -= lostUsers * BUG_SECONDS_PER_LOST_USER 
+    m.usersPerSecondFromFeatures = float64(m.features)* USERS_PER_SECOND_PER_FEATURE
+    m.usersPerSecondFromMarketers = float64(m.marketers) * USERS_PER_SECOND_PER_MARKERTER
+    usersAddedPerSecond :=  m.usersPerSecondFromFeatures + m.usersPerSecondFromMarketers
+    m.progressTowardUser += usersAddedPerSecond
+    newUsers := math.Floor(m.progressTowardUser)
+    m.users += int(newUsers)
+    m.progressTowardUser -= newUsers
+
+    m.usersPerSecondFromBugs = float64(m.bugs) * USERS_PER_SECOND_PER_BUG
+    usersLostPerSecond := m.usersPerSecondFromBugs
+    m.progressTowardLostUser += usersLostPerSecond
+    lostUsers := math.Floor(m.progressTowardLostUser)
+    m.users -= int(lostUsers)
+    m.progressTowardUser -= lostUsers
 
     
-    m.cash += CASH_PER_SECOND_PER_USER_PER_FEATURE * m.users * m.features
+    m.cashPerSecond = CASH_PER_SECOND_PER_USER_PER_FEATURE * m.users * m.features
+    m.cash += m.cashPerSecond
+    m.cashParticlesVisible = min(int(math.Log2(float64(m.cashPerSecond))), len(m.cashParticles))
 
     m.pricePerShare =   PRICE_PER_FEATURE * m.features +
                         PRICE_PER_DEV * m.devs +
@@ -203,8 +234,12 @@ func onFrameTick(m model) model {
 
 
 type devKeyMap struct {
-    Hire key.Binding
-    Fire key.Binding
+    HireDev key.Binding
+    FireDev key.Binding
+    HireQA key.Binding
+    FireQA key.Binding
+    HireMarketing key.Binding
+    FireMarketing key.Binding
     FocusBugs key.Binding
     FocusNewFeatures key.Binding
     Help key.Binding
@@ -217,19 +252,35 @@ func (k devKeyMap) ShortHelp() []key.Binding {
 }
 func (k devKeyMap) FullHelp() [][]key.Binding {
     return [][]key.Binding{
-        {k.Hire, k.Fire, k.FocusBugs, k.FocusNewFeatures},
+        {k.HireDev, k.FireDev, k.FocusBugs, k.FocusNewFeatures},
         {k.Help},
     }
 }
 
 var devKeys = devKeyMap{
-    Hire: key.NewBinding(
+    HireDev: key.NewBinding(
         key.WithKeys("h"),
         key.WithHelp("h","hire dev"),
     ),
-    Fire: key.NewBinding(
+    HireQA: key.NewBinding(
+        key.WithKeys("y"),
+        key.WithHelp("y","hire qa"),
+    ),
+    HireMarketing: key.NewBinding(
+        key.WithKeys("t"),
+        key.WithHelp("t","hire marketing"),
+    ),
+    FireDev: key.NewBinding(
         key.WithKeys("f"),
         key.WithHelp("f","fire dev"),
+    ),
+    FireQA: key.NewBinding(
+        key.WithKeys("r"),
+        key.WithHelp("r","fire qa"),
+    ),
+    FireMarketing: key.NewBinding(
+        key.WithKeys("e"),
+        key.WithHelp("e","fire marketing"),
     ),
     FocusBugs: key.NewBinding(
         key.WithKeys("b"),
@@ -274,11 +325,23 @@ func(m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
         switch {
 
-        case key.Matches(msg, devKeys.Hire):
+        case key.Matches(msg, devKeys.HireDev):
             m.devs += 1
 
-        case key.Matches(msg, devKeys.Fire):
+        case key.Matches(msg, devKeys.HireQA):
+            m.qa += 1
+
+        case key.Matches(msg, devKeys.HireMarketing):
+            m.marketers += 1
+
+        case key.Matches(msg, devKeys.FireDev):
             m.devs -= 1
+
+        case key.Matches(msg, devKeys.FireQA):
+            m.qa -= 1
+
+        case key.Matches(msg, devKeys.FireMarketing):
+            m.marketers -= 1
 
         case key.Matches(msg, devKeys.FocusBugs):
             m.devFocus = max(0, m.devFocus - 1)
@@ -290,7 +353,7 @@ func(m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             m.helpWindow = !m.helpWindow
 
         case key.Matches(msg, devKeys.Features):
-            m = m.ApplyProgressTowardFeature(1)
+            m.progressTowardFeature = 1.
 
         case key.Matches(msg, devKeys.Bugs):
             m.bugs = max(0, m.bugs - 1)
@@ -343,12 +406,16 @@ func (m model) CashWindow() string {
 
     s := cashTube + "\n" + startupBuilding
 
-    l := len(CashLevels)
-    cashSize := min(m.cash / 1000, l-1)
+    l := float64(len(CashLevels))
+    g := float64(CASH_CAP)
+    y := math.Pow(g, 1/l)
+    cashLog := math.Max(1.0,math.Log(float64(m.cash)))
+    yLog := math.Log(y)
+    cashSize := int(cashLog / yLog / 2)
     cashPile := CashLevels[cashSize]
     s = PlaceOverlay(0+cashPile.x, 5+cashPile.y, cashStyle.Render(cashPile.view), s, false)
 
-    for i:=0;i<len(m.cashParticles);i++ {
+    for i:=0;i<m.cashParticlesVisible;i++ {
         s = PlaceOverlay(m.cashParticles[i].x, 3 + m.cashParticles[i].y, cashStyle.Render(string(randomRune())), s, false)
     }
 
@@ -360,15 +427,19 @@ func (m model) TableView() string {
     cols := []table.Column{
         {Title: "", Width: 16},
         {Title: "", Width: 16},
+        {Title: "", Width: 16},
+        {Title: "", Width: 16},
+        {Title: "", Width: 16},
     }
 
     rows := []table.Row{
         {"Price per share", fmt.Sprintf("%v", m.pricePerShare)},
-        {"Cash", fmt.Sprintf("%v", m.cash)},
-        {"Users", fmt.Sprintf("%v", m.users)},
-        {"Features", fmt.Sprintf("%v", m.features)},
-        {"Bugs", fmt.Sprintf("%v", m.bugs)},
-        {"Devs", fmt.Sprintf("%v", m.devs)},
+        {"Cash", fmt.Sprintf("%v", m.cash), fmt.Sprintf("$%d/sec",m.cashPerSecond)},
+        {"Users", fmt.Sprintf("%v", m.users), fmt.Sprintf("%.2f/sec", m.usersPerSecondFromFeatures + m.usersPerSecondFromMarketers - m.usersPerSecondFromBugs)},
+        {"Features", fmt.Sprintf("%v", m.features), fmt.Sprintf("%.2f Users/sec",m.usersPerSecondFromFeatures), fmt.Sprintf("%.2f Bugs/sec",m.bugsPerSecondPerFeature)},
+        {"Bugs", fmt.Sprintf("%v", m.bugs), fmt.Sprintf("%.2f Users/sec", -m.usersPerSecondFromBugs)},
+        {"Devs", fmt.Sprintf("%v",m.devs),fmt.Sprintf("%.2f Features/sec", m.featuresPerSecond), fmt.Sprintf("%.2f Bugs/sec",m.bugsPerSecondPerDev),fmt.Sprintf("%d $/sec", m.devs * DEV_SALARY_PER_SECOND)},
+        {"QA", fmt.Sprintf("%v", m.qa)},
         {"Marketers", fmt.Sprintf("%v", m.marketers)},
     }
 
@@ -464,12 +535,3 @@ func main() {
     }
 }
 
-func (m model) ApplyProgressTowardFeature(points int) model {
-    m.progressTowardFeature += points
-    for m.progressTowardFeature > m.features {
-       m.progressTowardFeature -= m.features
-       m.features += 1
-    }
-
-    return m
-}

@@ -7,6 +7,12 @@ type CashPile struct {
 }
 
 var CashLevels = []CashPile{
+{x:8,y:6,view:`
+`},
+{x:9,y:7,view:`
+_`},
+{x:8,y:7,view:`
+.-,`},
 {x:6,y:6,view:`
  ,-.
 /___\`},
